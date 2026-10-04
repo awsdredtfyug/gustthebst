@@ -60,7 +60,7 @@
            PROXY BROWSER — integrated CSS
            .settings-card/.settings-header renamed to
            .proxy-wisp-card/.proxy-wisp-header to avoid
-           conflicts with GhostLink's own settings CSS.
+           conflicts with Gust's own settings CSS.
            ════════════════════════════════════════ */
 
         /* ── BROWSER LAYOUT ── */
@@ -1127,7 +1127,7 @@
   <div class="content">
     <div class="hero-block">
       <div class="gl-logo">◈</div>
-      <h1 class="gl-title">GhostLink</h1>
+      <h1 class="gl-title">Gust</h1>
     </div>
     <form class="search-wrap" id="searchForm">
       <div class="search-box">
@@ -1332,12 +1332,13 @@
 
         async function fetchWispServers() {
             try {
-                const res = await fetch("https://cdn.jsdelivr.net/gh/virtuan4-max/ghostlinkhub@main/proxy/wisps.html");
-                const text = await res.text();
-                const match = text.match(/const\s+WISP_SERVERS\s*=\s*(\[[\s\S]*?\]);/);
-                if (match) {
-                    WISP_SERVERS = (new Function('return ' + match[1]))();
-                }
+            const res = await fetch(getBasePath() + "wisp-servers.json");
+            if (!res.ok) throw new Error(`Server list request failed (${res.status})`);
+            const servers = await res.json();
+            if (!Array.isArray(servers)) throw new Error("Server list must be an array");
+            WISP_SERVERS = servers.filter(server =>
+              server && typeof server.name === "string" && typeof server.url === "string"
+            );
             } catch (e) {
                 console.warn("Failed to fetch wisp server list:", e);
             }
@@ -1531,7 +1532,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>GhostLink</title>
+  <title>Gust</title>
   <style>
     html, body, iframe { width: 100%; height: 100%; margin: 0; border: 0; }
     body { overflow: hidden; }
@@ -1539,13 +1540,13 @@
   </style>
 </head>
 <body>
-  <iframe src="${safeAppUrl}" title="GhostLink"></iframe>
+  <iframe src="${safeAppUrl}" title="Gust"></iframe>
 </body>
 </html>`;
             const blobUrl = URL.createObjectURL(new Blob([html], { type: "text/html;charset=utf-8" }));
             const link = document.createElement("a");
             link.href = blobUrl;
-            link.download = "ghostlink.html";
+            link.download = "gust.html";
             link.click();
             setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
           } catch (error) {
@@ -2193,11 +2194,10 @@
         async function proxyInit() {
             const root = document.getElementById('proxy-app');
             const _piSteps = [
-                { id: 'pi-s1', label: 'Fetching server list' },
-                { id: 'pi-s2', label: 'Selecting fastest server' },
-                { id: 'pi-s3', label: 'Loading proxy engine' },
-                { id: 'pi-s4', label: 'Opening transport' },
-                { id: 'pi-s5', label: 'Registering service worker' },
+              { id: 'pi-s1', label: 'Preparing proxy resources' },
+              { id: 'pi-s2', label: 'Opening transport' },
+              { id: 'pi-s3', label: 'Registering service worker' },
+              { id: 'pi-s4', label: 'Starting browser' },
             ];
             root.innerHTML = `
                 <div id="proxy-init-screen" style="
@@ -2220,7 +2220,7 @@
                             animation:spin 0.8s linear infinite;">
                         </div>
                         <div style="font-size:0.65rem; letter-spacing:3px; text-transform:uppercase; color:var(--accent); margin-bottom:20px; text-shadow:0 0 8px var(--accent-glow);">
-                            GHOSTLINK PROXY
+                            GUST PROXY
                         </div>
                         <div style="display:flex; flex-direction:column; gap:10px; text-align:left;">
                             ${_piSteps.map(s => `
@@ -2294,23 +2294,18 @@
 
             try {
                 _piMark('pi-s1', 'active');
-                await fetchWispServers();
+                await Promise.all([
+                  fetchWispServers().then(initializeWithBestServer),
+                  getSharedScramjet()
+                ]);
                 _piMark('pi-s1', 'done');
 
                 _piMark('pi-s2', 'active');
-                await initializeWithBestServer();
+                await getSharedConnection();
                 _piMark('pi-s2', 'done');
 
-                _piMark('pi-s3', 'active');
-                await getSharedScramjet();
-                _piMark('pi-s3', 'done');
-
-                _piMark('pi-s4', 'active');
-                await getSharedConnection();
-                _piMark('pi-s4', 'done');
-
                 if ('serviceWorker' in navigator) {
-                    _piMark('pi-s5', 'active');
+                  _piMark('pi-s3', 'active');
                     const reg = await navigator.serviceWorker.register(getBasePath() + 'sw.js', { scope: getBasePath() });
                     
                     await navigator.serviceWorker.ready;
@@ -2350,10 +2345,12 @@
                     });
 
                     reg.update();
-                    _piMark('pi-s5', 'done');
+                    _piMark('pi-s3', 'done');
                 }
 
+                  _piMark('pi-s4', 'active');
                 await initializeBrowser();
+                  _piMark('pi-s4', 'done');
             } catch (err) {
                 console.error("Proxy initialization error:", err);
                 const root = document.getElementById('proxy-app');
