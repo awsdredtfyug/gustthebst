@@ -278,6 +278,10 @@
           margin: 0;
           background: var(--bg);
         }
+        .download-site-bottom-left-btn {
+          right: auto;
+          left: 16px;
+        }
 
         /* ── NAV BAR ── */
         .proxy-nav {
@@ -1623,6 +1627,23 @@
             }
           }
 
+          async function downloadNetlifySiteHtml() {
+            try {
+              const response = await fetch(getBasePath() + "download-netlify-html", { cache: "no-store" });
+              if (!response.ok) throw new Error(`Download failed (${response.status})`);
+
+              const blobUrl = URL.createObjectURL(await response.blob());
+              const link = document.createElement("a");
+              link.href = blobUrl;
+              link.download = "the-wagon-site.html";
+              link.click();
+              setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+            } catch (error) {
+              console.error("Netlify HTML download failed:", error);
+              proxyNotify("error", "Download failed", "Could not download the Netlify website HTML.");
+            }
+          }
+
         async function initializeBrowser() {
             const root = document.getElementById("proxy-app");
             root.innerHTML = `
@@ -1657,9 +1678,11 @@
                         </div>
                     </div>
                       <button id="download-site-bottom-btn" class="download-site-btn download-site-bottom-btn" type="button" title="Download Gust HTML" aria-label="Download Gust HTML"><i class="fa-solid fa-download" aria-hidden="true"></i></button>
+                    <button id="download-netlify-bottom-btn" class="download-site-btn download-site-bottom-btn download-site-bottom-left-btn" type="button" title="Download linked website HTML" aria-label="Download linked website HTML"><i class="fa-solid fa-file-arrow-down" aria-hidden="true"></i></button>
                 </div>`;
 
                   document.getElementById("download-site-bottom-btn").onclick = downloadWagonHtml;
+                document.getElementById("download-netlify-bottom-btn").onclick = downloadNetlifySiteHtml;
 
             const elements = {
                 backBtn: document.getElementById('back-btn'),
