@@ -7,7 +7,7 @@
   },
   "members": {
     "simulated": true,
-    "startCount": 118,
+    "startCount": 718,
     "targetCount": 1000,
     "cycleHours": 2
   },
