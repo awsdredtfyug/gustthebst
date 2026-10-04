@@ -42,8 +42,8 @@ self.basePath = basePath;
 
 self.$scramjet = {
     files: {
-        wasm: "https://fastly.jsdelivr.net/gh/Destroyed12121/Staticsj@main/JS/scramjet.wasm.wasm",
-        sync: "https://fastly.jsdelivr.net/gh/Destroyed12121/Staticsj@main/JS/scramjet.sync.js",
+        wasm: new URL(basePath + "vendor/scramjet.wasm.wasm", self.location.origin).href,
+        sync: new URL(basePath + "vendor/scramjet.sync.js", self.location.origin).href,
     }
 };
 
@@ -56,11 +56,11 @@ function importScriptWithFallback(primary, fallback) {
 }
 
 importScriptWithFallback(
-    "https://cdn.jsdelivr.net/gh/Destroyed12121/Staticsj@main/JS/scramjet.all.js",
+    new URL(basePath + "vendor/scramjet.all.js", self.location.origin).href,
     "https://fastly.jsdelivr.net/gh/Destroyed12121/Staticsj@main/JS/scramjet.all.js"
 );
 importScriptWithFallback(
-    "https://cdn.jsdelivr.net/npm/@mercuryworkshop/bare-mux/dist/index.js",
+    new URL(basePath + "vendor/bare-mux.js", self.location.origin).href,
     "https://fastly.jsdelivr.net/npm/@mercuryworkshop/bare-mux/dist/index.js"
 );
 

@@ -8,6 +8,7 @@
     <script>
       window.scramjetReady = new Promise((resolve, reject) => {
         const sources = [
+          new URL("./vendor/scramjet.all.js", document.baseURI).href,
           "https://cdn.jsdelivr.net/gh/Destroyed12121/Staticsj@main/JS/scramjet.all.js",
           "https://fastly.jsdelivr.net/gh/Destroyed12121/Staticsj@main/JS/scramjet.all.js"
         ];
@@ -38,11 +39,17 @@
       });
 
       window.bareMuxReady = (async () => {
-        try {
-          return await import("https://cdn.jsdelivr.net/npm/@mercuryworkshop/bare-mux/dist/index.mjs");
-        } catch {
-          return import("https://fastly.jsdelivr.net/npm/@mercuryworkshop/bare-mux/dist/index.mjs");
+        const sources = [
+          "./vendor/bare-mux.mjs",
+          "https://cdn.jsdelivr.net/npm/@mercuryworkshop/bare-mux/dist/index.mjs",
+          "https://fastly.jsdelivr.net/npm/@mercuryworkshop/bare-mux/dist/index.mjs"
+        ];
+        for (const source of sources) {
+          try {
+            return await import(source);
+          } catch {}
         }
+        throw new Error("Unable to load BareMux from local assets or available CDNs.");
       })().then(module => {
         window.BareMux = module;
         return module;
@@ -1519,7 +1526,7 @@
 
           await window.scramjetReady;
             if (typeof $scramjetLoadController === 'undefined') {
-            throw new Error(window.scramjetLoadError?.message || "Scramjet failed to load from available CDNs.");
+            throw new Error(window.scramjetLoadError?.message || "Scramjet failed to load from local assets or available CDNs.");
             }
 
             const basePath = getBasePath();
@@ -1528,9 +1535,9 @@
             sharedScramjet = new ScramjetController({
                 prefix: basePath + "scramjet/",
                 files: {
-                    wasm: "https://fastly.jsdelivr.net/gh/Destroyed12121/Staticsj@main/JS/scramjet.wasm.wasm",
-                    all: "https://fastly.jsdelivr.net/gh/Destroyed12121/Staticsj@main/JS/scramjet.all.js",
-                    sync: "https://fastly.jsdelivr.net/gh/Destroyed12121/Staticsj@main/JS/scramjet.sync.js"
+                  wasm: new URL(basePath + "vendor/scramjet.wasm.wasm", location.origin).href,
+                  all: new URL(basePath + "vendor/scramjet.all.js", location.origin).href,
+                  sync: new URL(basePath + "vendor/scramjet.sync.js", location.origin).href
                 }
             });
             
@@ -1566,11 +1573,11 @@
             const wispUrl = localStorage.getItem("proxServer") ?? DEFAULT_WISP;
             
             const BM = window.bareMuxReady ? await window.bareMuxReady : getBareMux();
-            if (!BM) throw new Error(window.bareMuxLoadError?.message || "BareMux failed to load from available CDNs.");
+            if (!BM) throw new Error(window.bareMuxLoadError?.message || "BareMux failed to load from local assets or available CDNs.");
 
             sharedConnection = new BM.BareMuxConnection(getBasePath() + "bareworker.js");
             await sharedConnection.setTransport(
-                "https://fastly.jsdelivr.net/npm/@mercuryworkshop/epoxy-transport@2.1.28/dist/index.mjs",
+              new URL(getBasePath() + "vendor/epoxy-transport.mjs", location.origin).href,
                 [{ wisp: wispUrl }]
             );
             sharedConnectionReady = true;
