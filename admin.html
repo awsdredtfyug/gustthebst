@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#080b10">
+  <title>Gust Admin</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #080b10;
+      --surface: #0e131b;
+      --surface-raised: #141c26;
+      --line: #263341;
+      --text: #e8f0f5;
+      --muted: #91a0ad;
+      --accent: #6ecbff;
+      --green: #52d69a;
+      --danger: #ff7777;
+      font-family: "Courier New", monospace;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; background: var(--bg); color: var(--text); }
+    button, input, select { font: inherit; }
+    button { cursor: pointer; }
+    .hidden { display: none !important; }
+    .auth-screen { min-height: 100vh; display: grid; place-items: center; padding: 24px; }
+    .auth-panel { width: min(100%, 420px); padding: 30px; border: 1px solid var(--line); background: var(--surface); }
+    .brand { color: var(--accent); font-size: 0.75rem; text-transform: uppercase; }
+    h1, h2, p { margin-top: 0; }
+    h1 { margin-bottom: 8px; font-size: 1.4rem; }
+    h2 { margin-bottom: 8px; font-size: 1rem; }
+    .muted { color: var(--muted); font-size: 0.82rem; line-height: 1.5; }
+    .field { display: grid; gap: 7px; margin: 18px 0; }
+    .field label { color: var(--muted); font-size: 0.72rem; text-transform: uppercase; }
+    input, select {
+      width: 100%; min-height: 40px; padding: 9px 11px;
+      color: var(--text); background: #090d12; border: 1px solid var(--line); border-radius: 3px;
+    }
+    input:focus, select:focus { outline: 1px solid var(--accent); border-color: var(--accent); }
+    input[type="checkbox"] { width: 17px; min-height: 17px; accent-color: var(--accent); }
+    .button-primary, .button-secondary, .button-danger {
+      min-height: 38px; padding: 8px 13px; border: 1px solid var(--line); border-radius: 3px;
+      background: transparent; color: var(--text); font-size: 0.78rem;
+    }
+    .button-primary { color: #061018; background: var(--accent); border-color: var(--accent); font-weight: 700; }
+    .button-primary:hover { filter: brightness(1.08); }
+    .button-secondary:hover { border-color: var(--accent); color: var(--accent); }
+    .button-danger { color: var(--danger); }
+    .button-danger:hover { border-color: var(--danger); }
+    .auth-panel .button-primary { width: 100%; }
+    .message { min-height: 1.4em; margin: 12px 0 0; color: var(--muted); font-size: 0.78rem; }
+    .message.error { color: var(--danger); }
+    .message.success { color: var(--green); }
+    .setup-note { margin-top: 16px; padding: 12px; border-left: 2px solid var(--accent); background: var(--surface-raised); }
+    .app-shell { width: min(1180px, 100%); margin: 0 auto; padding: 24px; }
+    .topbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-bottom: 20px; border-bottom: 1px solid var(--line); }
+    .topbar h1 { margin: 5px 0 0; }
+    .top-actions { display: flex; align-items: center; gap: 12px; }
+    .connection-status { display: flex; align-items: center; gap: 7px; color: var(--muted); font-size: 0.72rem; }
+    .connection-status::before { width: 7px; height: 7px; content: ""; border-radius: 50%; background: var(--green); }
+    .tabs { display: flex; gap: 4px; overflow-x: auto; padding: 16px 0 0; border-bottom: 1px solid var(--line); }
+    .tab { flex: 0 0 auto; padding: 10px 13px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--muted); }
+    .tab[aria-selected="true"] { color: var(--accent); border-bottom-color: var(--accent); }
+    .panel { padding: 24px 0; }
+    .panel-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; margin-bottom: 22px; }
+    .panel-heading h2 { font-size: 1.15rem; }
+    .metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 26px; }
+    .metric { min-height: 106px; padding: 15px; border: 1px solid var(--line); background: var(--surface); }
+    .metric-label { display: block; margin-bottom: 12px; color: var(--muted); font-size: 0.72rem; text-transform: uppercase; }
+    .metric-value { font-size: 1.35rem; color: var(--accent); }
+    .section { padding: 20px 0; border-top: 1px solid var(--line); }
+    .section:first-of-type { border-top: 0; padding-top: 0; }
+    .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 20px; }
+    .check-row { display: flex; align-items: center; gap: 10px; min-height: 40px; color: var(--text); font-size: 0.82rem; }
+    .notice { margin: 14px 0; padding: 11px 13px; border-left: 2px solid var(--accent); color: var(--muted); background: var(--surface); font-size: 0.76rem; line-height: 1.5; }
+    .game-composer { display: grid; grid-template-columns: minmax(150px, 0.65fr) minmax(240px, 1.35fr) auto; gap: 10px; align-items: end; margin: 20px 0; }
+    .game-list { display: grid; }
+    .game-row { display: grid; grid-template-columns: minmax(140px, 0.65fr) minmax(220px, 1.35fr) auto; gap: 10px; align-items: center; padding: 10px 0; border-top: 1px solid var(--line); }
+    .game-row input { min-width: 0; }
+    .save-bar { position: sticky; bottom: 0; display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 12px 0; border-top: 1px solid var(--line); background: rgba(8, 11, 16, 0.96); }
+    .save-bar .message { flex: 1; margin: 0; }
+    @media (max-width: 680px) {
+      .app-shell { padding: 16px; }
+      .metrics { grid-template-columns: 1fr; }
+      .metric { min-height: 76px; }
+      .form-grid { grid-template-columns: 1fr; }
+      .game-composer, .game-row { grid-template-columns: 1fr; }
+      .game-row .button-danger { justify-self: start; }
+      .topbar { align-items: flex-start; }
+      .top-actions { align-items: flex-end; flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+  <main class="auth-screen" id="auth-screen">
+    <section class="auth-panel">
+      <p class="brand">Gust / Admin</p>
+      <h1>Sign in</h1>
+      <p class="muted">Manage site defaults, the simulated member display, and new-tab game links.</p>
+      <form id="login-form">
+        <div class="field">
+          <label for="admin-password">Admin password</label>
+          <input id="admin-password" type="password" autocomplete="current-password" required>
+        </div>
+        <button class="button-primary" type="submit">Sign in</button>
+      </form>
+      <div class="setup-note muted hidden" id="setup-note">Admin access is not configured. Start the Node server with a <code>GUST_ADMIN_PASSWORD</code> environment variable to enable sign-in.</div>
+      <p class="message" id="auth-message" role="status"></p>
+    </section>
+  </main>
+
+  <div class="app-shell hidden" id="admin-app">
+    <header class="topbar">
+      <div>
+        <p class="brand">Gust / Control room</p>
+        <h1>Site administration</h1>
+      </div>
+      <div class="top-actions">
+        <span class="connection-status">Authenticated</span>
+        <button class="button-secondary" id="logout-button" type="button">Sign out</button>
+      </div>
+    </header>
+
+    <nav class="tabs" aria-label="Admin sections">
+      <button class="tab" type="button" data-view="overview" aria-selected="true">Overview</button>
+      <button class="tab" type="button" data-view="settings" aria-selected="false">Settings</button>
+      <button class="tab" type="button" data-view="members" aria-selected="false">Members</button>
+      <button class="tab" type="button" data-view="games" aria-selected="false">Games</button>
+    </nav>
+
+    <form id="config-form">
+      <section class="panel" data-panel="overview">
+        <div class="panel-heading">
+          <div><h2>Overview</h2><p class="muted">Changes are saved to the Gust server and shared with visitors.</p></div>
+        </div>
+        <div class="metrics">
+          <div class="metric"><span class="metric-label">Simulated members</span><strong class="metric-value" id="overview-members">483</strong></div>
+          <div class="metric"><span class="metric-label">Cycle target</span><strong class="metric-value" id="overview-target">1,000</strong></div>
+          <div class="metric"><span class="metric-label">Game links</span><strong class="metric-value" id="overview-games">0</strong></div>
+        </div>
+        <div class="notice">The online member number is simulated, not live visitor analytics. Game links appear as shortcuts on the new-tab page.</div>
+      </section>
+
+      <section class="panel hidden" data-panel="settings">
+        <div class="panel-heading"><div><h2>Site settings</h2><p class="muted">Set defaults used by visitors when they open Gust.</p></div></div>
+        <div class="form-grid">
+          <div class="field"><label for="site-name">Site name</label><input id="site-name" maxlength="40" required></div>
+          <div class="field"><label for="default-wisp">Default Wisp URL</label><input id="default-wisp" type="url" placeholder="wss://server.example/wisp/" required></div>
+          <div class="field"><label for="search-engine">Default search engine</label>
+            <select id="search-engine">
+              <option value="https://duckduckgo.com/?q=">DuckDuckGo</option>
+              <option value="https://search.brave.com/search?q=">Brave</option>
+              <option value="https://www.bing.com/search?q=">Bing</option>
+              <option value="https://search.yahoo.com/search?p=">Yahoo</option>
+            </select>
+          </div>
+          <div class="field"><label>Connection behavior</label><label class="check-row"><input id="wisp-autoswitch" type="checkbox"> Auto-switch on server failure</label></div>
+        </div>
+      </section>
+
+      <section class="panel hidden" data-panel="members">
+        <div class="panel-heading"><div><h2>Member display</h2><p class="muted">Configure the transparent simulated count shown in the lower-right corner.</p></div></div>
+        <div class="notice">This controls a simulated display only. It does not count or represent real people online.</div>
+        <div class="form-grid">
+          <div class="field"><label for="member-start">Starting count</label><input id="member-start" type="number" min="0" max="100000" step="1" required></div>
+          <div class="field"><label for="member-target">Cycle target</label><input id="member-target" type="number" min="0" max="100000" step="1" required></div>
+          <div class="field"><label for="member-cycle">Hours per cycle</label><input id="member-cycle" type="number" min="0.25" max="168" step="0.25" required></div>
+        </div>
+      </section>
+
+      <section class="panel hidden" data-panel="games">
+        <div class="panel-heading"><div><h2>Game shortcuts</h2><p class="muted">Manage links shown on every new-tab page.</p></div></div>
+        <div class="game-composer">
+          <div class="field"><label for="new-game-name">Game name</label><input id="new-game-name" maxlength="40" placeholder="Game name"></div>
+          <div class="field"><label for="new-game-url">Game URL</label><input id="new-game-url" type="url" placeholder="https://game.example/"></div>
+          <button class="button-secondary" id="add-game" type="button">Add game</button>
+        </div>
+        <div class="game-list" id="game-list"></div>
+        <p class="muted" id="empty-games">No admin game links yet. Add a name and HTTPS link above.</p>
+      </section>
+
+      <footer class="save-bar">
+        <p class="message" id="save-message" role="status"></p>
+        <button class="button-primary" id="save-button" type="submit">Save changes</button>
+      </footer>
+    </form>
+  </div>
+
+  <script>
+    const authScreen = document.getElementById("auth-screen");
+    const adminApp = document.getElementById("admin-app");
+    const authMessage = document.getElementById("auth-message");
+    const saveMessage = document.getElementById("save-message");
+    let config = null;
+
+    async function api(path, options = {}) {
+      const response = await fetch(path, {
+        credentials: "same-origin",
+        cache: "no-store",
+        ...options,
+        headers: { "Content-Type": "application/json", ...(options.headers || {}) },
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const error = new Error(body.error || `Request failed (${response.status})`);
+        error.status = response.status;
+        throw error;
+      }
+      return body;
+    }
+
+    function showAuth(message = "", isError = false) {
+      authScreen.classList.remove("hidden");
+      adminApp.classList.add("hidden");
+      authMessage.textContent = message;
+      authMessage.className = `message${isError ? " error" : ""}`;
+    }
+
+    function showApp() {
+      authScreen.classList.add("hidden");
+      adminApp.classList.remove("hidden");
+    }
+
+    function setView(name) {
+      document.querySelectorAll("[data-view]").forEach((button) => {
+        button.setAttribute("aria-selected", String(button.dataset.view === name));
+      });
+      document.querySelectorAll("[data-panel]").forEach((panel) => {
+        panel.classList.toggle("hidden", panel.dataset.panel !== name);
+      });
+    }
+
+    function renderGames() {
+      const list = document.getElementById("game-list");
+      list.replaceChildren();
+      config.games.forEach((game) => {
+        const row = document.createElement("div");
+        row.className = "game-row";
+        row.dataset.id = game.id;
+        const name = document.createElement("input");
+        name.value = game.name;
+        name.maxLength = 40;
+        name.setAttribute("aria-label", "Game name");
+        const url = document.createElement("input");
+        url.type = "url";
+        url.value = game.url;
+        url.setAttribute("aria-label", "Game URL");
+        const remove = document.createElement("button");
+        remove.type = "button";
+        remove.className = "button-danger";
+        remove.textContent = "Remove";
+        remove.addEventListener("click", () => {
+          config.games = config.games.filter((item) => item.id !== game.id);
+          renderGames();
+          updateOverview();
+        });
+        row.append(name, url, remove);
+        list.append(row);
+      });
+      document.getElementById("empty-games").classList.toggle("hidden", config.games.length > 0);
+    }
+
+    function updateOverview() {
+      document.getElementById("overview-members").textContent = Number(config.members.startCount).toLocaleString();
+      document.getElementById("overview-target").textContent = Number(config.members.targetCount).toLocaleString();
+      document.getElementById("overview-games").textContent = config.games.length.toString();
+    }
+
+    function populateForm(value) {
+      config = value;
+      document.getElementById("site-name").value = config.settings.siteName;
+      document.getElementById("default-wisp").value = config.settings.defaultWisp;
+      document.getElementById("search-engine").value = config.settings.searchEngine;
+      document.getElementById("wisp-autoswitch").checked = config.settings.wispAutoswitch;
+      document.getElementById("member-start").value = config.members.startCount;
+      document.getElementById("member-target").value = config.members.targetCount;
+      document.getElementById("member-cycle").value = config.members.cycleHours;
+      renderGames();
+      updateOverview();
+    }
+
+    async function enterAdmin() {
+      const value = await api("/api/admin/config");
+      populateForm(value);
+      showApp();
+    }
+
+    document.getElementById("login-form").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      authMessage.textContent = "Signing in…";
+      authMessage.className = "message";
+      try {
+        const password = document.getElementById("admin-password").value;
+        await api("/api/admin/login", { method: "POST", body: JSON.stringify({ password }) });
+        document.getElementById("admin-password").value = "";
+        await enterAdmin();
+      } catch (error) {
+        showAuth(error.message, true);
+      }
+    });
+
+    document.querySelectorAll("[data-view]").forEach((button) => {
+      button.addEventListener("click", () => setView(button.dataset.view));
+    });
+
+    document.getElementById("add-game").addEventListener("click", () => {
+      const nameInput = document.getElementById("new-game-name");
+      const urlInput = document.getElementById("new-game-url");
+      const name = nameInput.value.trim();
+      const url = urlInput.value.trim();
+      if (!name || !url) {
+        saveMessage.textContent = "Enter both a game name and URL.";
+        saveMessage.className = "message error";
+        return;
+      }
+      config.games.push({ id: crypto.randomUUID(), name, url });
+      nameInput.value = "";
+      urlInput.value = "";
+      saveMessage.textContent = "Game added. Save changes to publish it.";
+      saveMessage.className = "message";
+      renderGames();
+      updateOverview();
+    });
+
+    document.getElementById("config-form").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const button = document.getElementById("save-button");
+      button.disabled = true;
+      saveMessage.textContent = "Saving…";
+      saveMessage.className = "message";
+      const games = [...document.querySelectorAll(".game-row")].map((row) => ({
+        id: row.dataset.id,
+        name: row.querySelector('[aria-label="Game name"]').value.trim(),
+        url: row.querySelector('[aria-label="Game URL"]').value.trim(),
+      }));
+      const nextConfig = {
+        settings: {
+          siteName: document.getElementById("site-name").value.trim(),
+          defaultWisp: document.getElementById("default-wisp").value.trim(),
+          wispAutoswitch: document.getElementById("wisp-autoswitch").checked,
+          searchEngine: document.getElementById("search-engine").value,
+        },
+        members: {
+          simulated: true,
+          startCount: Number(document.getElementById("member-start").value),
+          targetCount: Number(document.getElementById("member-target").value),
+          cycleHours: Number(document.getElementById("member-cycle").value),
+        },
+        games,
+      };
+      try {
+        config = await api("/api/admin/config", { method: "PUT", body: JSON.stringify(nextConfig) });
+        populateForm(config);
+        saveMessage.textContent = "Changes saved.";
+        saveMessage.className = "message success";
+      } catch (error) {
+        saveMessage.textContent = error.message;
+        saveMessage.className = "message error";
+      } finally {
+        button.disabled = false;
+      }
+    });
+
+    document.getElementById("logout-button").addEventListener("click", async () => {
+      try { await api("/api/admin/logout", { method: "POST", body: "{}" }); } catch {}
+      showAuth("Signed out.");
+    });
+
+    (async function initialize() {
+      try {
+        const status = await api("/api/admin/status");
+        document.getElementById("setup-note").classList.toggle("hidden", status.configured);
+        document.getElementById("login-form").classList.toggle("hidden", !status.configured);
+        if (!status.configured) {
+          showAuth("Admin access is not configured on this server.", true);
+        } else if (status.authenticated) {
+          await enterAdmin();
+        }
+      } catch {
+        showAuth("The Gust Node admin API is unavailable. Start server.js to use this panel.", true);
+      }
+    })();
+  </script>
+</body>
+</html>

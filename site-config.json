@@ -1,0 +1,15 @@
+{
+  "settings": {
+    "siteName": "Gust",
+    "defaultWisp": "wss://glseries.net/wisp/",
+    "wispAutoswitch": true,
+    "searchEngine": "https://duckduckgo.com/?q="
+  },
+  "members": {
+    "simulated": true,
+    "startCount": 483,
+    "targetCount": 1000,
+    "cycleHours": 2
+  },
+  "games": []
+}

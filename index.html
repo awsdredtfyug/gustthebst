@@ -1048,7 +1048,7 @@
       transition: fill 0.2s;
     }
     .shortcut:hover .shortcut-svg { fill: var(--accent); }
-    .shortcut-icon i { color: var(--accent); font-size: 18px; }
+    .shortcut-icon i { color: var(--accent); font-size: 18px; font-style: normal; }
     .shortcut-label {
       font-family: var(--font);
       font-size: 0.65rem;
@@ -1277,6 +1277,16 @@
         document.body.style.color = t.textPrimary || '';
         document.body.style.fontFamily = t.font || '';
       }
+      if (e.data && e.data.type === 'GUST_PUBLIC_CONFIG') {
+        window.GUST_PUBLIC_CONFIG = e.data.config;
+        const title = document.querySelector('.gl-title');
+        if (title && e.data.config.settings?.siteName) title.textContent = e.data.config.settings.siteName;
+        const engine = document.getElementById('engine');
+        if (engine && !localStorage.getItem('gl_search_engine') && e.data.config.settings?.searchEngine) {
+          engine.value = e.data.config.settings.searchEngine;
+        }
+        renderShortcuts();
+      }
     });
     // Tell the parent we are ready so it can push the current theme immediately
     if (window.parent && window.parent !== window) {
@@ -1292,7 +1302,7 @@
       }
     }
     (function() {
-      const saved = localStorage.getItem('gl_search_engine');
+      const saved = localStorage.getItem('gl_search_engine') || window.GUST_PUBLIC_CONFIG?.settings?.searchEngine;
       const sel = document.getElementById('engine');
       if (saved) {
         const opt = [...sel.options].find(o => o.value === saved);
@@ -1321,20 +1331,32 @@
       catch { return DEFAULT_SHORTCUTS; }
     }
     function saveShortcuts(list) { localStorage.setItem('gl_shortcuts', JSON.stringify(list)); }
+    function escapeHtml(value) {
+      return String(value).replace(/[&<>"']/g, character => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      })[character]);
+    }
     function renderShortcuts() {
       const container = document.getElementById('shortcuts');
       container.innerHTML = '';
-      getShortcuts().forEach((s, i) => {
+      const adminGames = (window.GUST_PUBLIC_CONFIG?.games || []).map(game => ({
+        label: game.name,
+        url: game.url,
+        adminGame: true
+      }));
+      [...getShortcuts(), ...adminGames].forEach((s, i) => {
         const el = document.createElement('div');
         el.className = 'shortcut';
         el.style.animationDelay = (i * 0.04 + 0.04) + 's';
-        // Use inline SVG if available (default shortcuts), else fall back to <img> for user-added favicons
+        const safeLabel = escapeHtml(s.label);
         const iconHtml = s.svg
           ? `<svg viewBox="${s.viewBox || '0 0 24 24'}" fill="currentColor" stroke="none" class="shortcut-svg">${s.svg}</svg>`
-          : `<img src="${s.icon}" onerror="this.style.display='none'">`;
+          : s.adminGame
+            ? `<i class="shortcut-initial">${escapeHtml(s.label.slice(0, 1).toUpperCase())}</i>`
+            : `<img src="${escapeHtml(s.icon || '')}" onerror="this.style.display='none'">`;
         el.innerHTML = `
           <div class="shortcut-icon">${iconHtml}</div>
-          <span class="shortcut-label">${s.label}</span>`;
+          <span class="shortcut-label">${safeLabel}</span>`;
         el.onclick = () => navigate(s.url);
         container.appendChild(el);
       });
@@ -1408,12 +1430,26 @@
             });
         }
 
+          function sendPublicConfigToNtTabs() {
+            if (!window.GUST_PUBLIC_CONFIG || typeof tabs === 'undefined' || !tabs.length) return;
+            tabs.forEach(tab => {
+              const isNt = !tab.url || tab.url === 'NT.html' || (tab.url && tab.url.startsWith('blob:'));
+              if (isNt && tab.frame?.frame?.contentWindow) {
+                tab.frame.frame.contentWindow.postMessage({
+                  type: 'GUST_PUBLIC_CONFIG',
+                  config: window.GUST_PUBLIC_CONFIG
+                }, '*');
+              }
+            });
+          }
+
         window.addEventListener('message', (event) => {
             if (event.data.type === 'GHOSTLINK_QUERY_THEME') {
                 sendThemeToIframe();
             }
             if (event.data.type === 'GHOSTLINK_NT_READY') {
                 sendThemeToNtTabs();
+              sendPublicConfigToNtTabs();
             }
         });
 
@@ -1493,7 +1529,7 @@
         }
 
         async function initializeWithBestServer() {
-            const autoswitch = localStorage.getItem('wispAutoswitch') !== 'false';
+          const autoswitch = getWispAutoswitch();
             const allServers = getAllWispServers();
 
             if (!autoswitch || allServers.length <= 1) {
@@ -1537,6 +1573,23 @@
             const basePath = location.pathname.replace(/[^/]*$/, '');
             return basePath.endsWith('/') ? basePath : basePath + '/';
         };
+
+        async function loadPublicConfig() {
+          const response = await fetch(getBasePath() + 'api/public-config', { cache: 'no-store' });
+          if (!response.ok) throw new Error(`Public config request failed (${response.status})`);
+          window.GUST_PUBLIC_CONFIG = await response.json();
+          DEFAULT_WISP = window.GUST_PUBLIC_CONFIG.settings?.defaultWisp || DEFAULT_WISP;
+          if (window.GUST_PUBLIC_CONFIG.settings?.siteName) document.title = window.GUST_PUBLIC_CONFIG.settings.siteName;
+          sendPublicConfigToNtTabs();
+          return window.GUST_PUBLIC_CONFIG;
+        }
+
+        function getWispAutoswitch() {
+          const saved = localStorage.getItem('wispAutoswitch');
+          return saved === null
+            ? window.GUST_PUBLIC_CONFIG?.settings?.wispAutoswitch !== false
+            : saved !== 'false';
+        }
 
         const getStoredWisps = () => {
             try { return JSON.parse(localStorage.getItem('customWisps') ?? '[]'); }
@@ -1697,20 +1750,22 @@
             if (!counter) return;
             if (simulatedOnlineCounterTimer) clearInterval(simulatedOnlineCounterTimer);
 
-            const startCount = 483;
-            const endCount = 1000;
-            const cycleDuration = 2 * 60 * 60 * 1000;
             const peakDuration = 30 * 1000;
-            const riseDuration = cycleDuration - peakDuration;
             const startedAt = Date.now();
 
             const updateCount = () => {
+              const members = window.GUST_PUBLIC_CONFIG?.members || {};
+              const startCount = Number.isFinite(Number(members.startCount)) ? Number(members.startCount) : 483;
+              const endCount = Number.isFinite(Number(members.targetCount)) ? Number(members.targetCount) : 1000;
+              const cycleDuration = Math.max(0.25, Number(members.cycleHours) || 2) * 60 * 60 * 1000;
+              const riseDuration = Math.max(1, cycleDuration - peakDuration);
               const cycleTime = (Date.now() - startedAt) % cycleDuration;
               const progress = Math.min(cycleTime / riseDuration, 1);
               const memberCount = Math.floor(startCount + (endCount - startCount) * progress);
               counter.textContent = memberCount.toLocaleString();
             };
 
+            window.updateSimulatedMemberCounter = updateCount;
             updateCount();
             simulatedOnlineCounterTimer = setInterval(updateCount, 10_000);
           }
@@ -1750,7 +1805,7 @@
                     </div>
                       <button id="download-site-bottom-btn" class="download-site-btn download-site-bottom-btn" type="button" title="Download Gust HTML" aria-label="Download Gust HTML"><i class="fa-solid fa-download" aria-hidden="true"></i></button>
                     <button id="download-netlify-bottom-btn" class="download-site-btn download-site-bottom-btn download-site-bottom-left-btn" type="button" title="Download linked website HTML" aria-label="Download linked website HTML"><i class="fa-solid fa-file-arrow-down" aria-hidden="true"></i></button>
-                    <div class="online-count-badge" title="Simulated bot activity, not a live member count">
+                    <div class="online-count-badge" title="Simulated member count, not live analytics">
                       <span class="online-count-dot" aria-hidden="true"></span>
                       <span class="online-count-number" id="simulated-online-count">483</span>
                       <span>members online · simulated</span>
@@ -2191,7 +2246,7 @@
                 checkServerHealth(server.url, item);
             });
 
-            const isAutoswitch = localStorage.getItem('wispAutoswitch') !== 'false';
+            const isAutoswitch = getWispAutoswitch();
             const toggleContainer = document.createElement('div');
             toggleContainer.className = 'wisp-option';
             toggleContainer.style.cssText = 'margin-top: 10px; cursor: default;';
@@ -2473,7 +2528,10 @@
             try {
                 _piMark('pi-s1', 'active');
                 await Promise.all([
-                  fetchWispServers().then(initializeWithBestServer),
+                  loadPublicConfig()
+                    .catch(error => console.warn('Using local defaults; public config unavailable:', error))
+                    .then(() => fetchWispServers())
+                    .then(initializeWithBestServer),
                   getSharedScramjet()
                 ]);
                 _piMark('pi-s1', 'done');
@@ -2486,7 +2544,7 @@
                     
                     const wispUrl = localStorage.getItem("proxServer") ?? DEFAULT_WISP;
                     const allServers = getAllWispServers();
-                    const autoswitch = localStorage.getItem('wispAutoswitch') !== 'false';
+                    const autoswitch = getWispAutoswitch();
                     
                     const swConfig = {
                         type: "config",
@@ -2525,6 +2583,11 @@
                   _piMark('pi-s3', 'active');
                 await initializeBrowser();
                   _piMark('pi-s3', 'done');
+                  setInterval(() => {
+                    loadPublicConfig()
+                      .then(() => window.updateSimulatedMemberCounter?.())
+                      .catch(error => console.warn('Public config refresh failed:', error));
+                  }, 60000);
             } catch (err) {
                 console.error("Proxy initialization error:", err);
                 const root = document.getElementById('proxy-app');
