@@ -1,12 +1,10 @@
-# ◈ NexusOS | Quantum
+# ◈ gust
 
 > A sleek, lightweight web interface for configuring and connecting to NexusOS servers.
 
 **NexusOS | Quantum** is a browser-based interface designed around a modern, minimal UI for server configuration and network connectivity.
 
 ### 🌐 Live Demo
-
-[NexusOS | Quantum](https://vortexinnovations-cyber.github.io/nexus.github.io/?utm_source=chatgpt.com)
 
 ---
 
@@ -22,61 +20,9 @@
 
 ---
 
-## 🖥️ Getting Started
-
-### 1. Open NexusOS
-
-Visit the live website:
-
-[NexusOS | Quantum](https://vortexinnovations-cyber.github.io/nexus.github.io/?utm_source=chatgpt.com)
-
-### 2. Select a Server
-
-Use the **Select Server** option to choose an available server configuration.
-
-### 3. Custom Server
-
-If a custom server is supported by your deployment, enter its WebSocket address in the custom server field.
-
-Example format:
-
-```text
-wss://your-server.com/wisp/
-```
-
 ### 4. Optimize Your Connection
 
 When multiple servers are available, a server with lower latency/ping will generally provide a more responsive connection.
-
----
-
-## 📂 Project Structure
-
-A typical deployment can be structured like this:
-
-```text
-nexus.github.io/
-├── index.html
-├── style.css
-├── script.js
-└── README.md
-```
-
-> Your repository may use a different structure depending on how the project is implemented.
-
----
-
-## 🚀 GitHub Pages
-
-NexusOS | Quantum can be deployed using **GitHub Pages**.
-
-1. Push the project files to a GitHub repository.
-2. Open the repository's **Settings**.
-3. Navigate to **Pages**.
-4. Select the branch containing the website.
-5. Set the deployment directory to the appropriate folder.
-6. Save the settings.
-7. GitHub Pages will build and publish the site.
 
 ---
 
@@ -136,8 +82,6 @@ All rights reserved.
 Developed by **Vortex Innovations Cyber**.
 
 🌐 Live website:
-[NexusOS | Quantum](https://vortexinnovations-cyber.github.io/nexus.github.io/?utm_source=chatgpt.com)
-
 ---
 
 ## ⭐ Support
