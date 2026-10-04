@@ -736,6 +736,19 @@
           text-transform: uppercase;
           flex-shrink: 0;
         }
+        .settings-admin-link {
+          display: flex;
+          align-items: center;
+          gap: 9px;
+          padding: 13px 22px;
+          border-top: 1px solid var(--border);
+          color: var(--accent);
+          font-family: var(--font);
+          font-size: 0.8rem;
+          text-decoration: none;
+          transition: background 0.2s;
+        }
+        .settings-admin-link:hover { background: rgba(110, 203, 255, 0.08); }
         .delete-wisp-btn {
           background: transparent;
           border: 1px solid rgba(255, 68, 68, 0.4);
@@ -840,6 +853,9 @@
                 <div class="settings-footer">
                     <i class="fa-solid fa-bolt" style="color:var(--accent);margin-right:6px"></i>Lower ping = faster browsing
                 </div>
+                <a class="settings-admin-link" href="./admin.html" aria-label="Open Admin Panel">
+                  <i class="fa-solid fa-shield-halved" aria-hidden="true"></i>Admin Panel
+                </a>
             </div>
         </div>
 

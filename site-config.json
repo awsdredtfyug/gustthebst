@@ -3,11 +3,11 @@
     "siteName": "Gust",
     "defaultWisp": "wss://glseries.net/wisp/",
     "wispAutoswitch": true,
-    "searchEngine": "https://duckduckgo.com/?q="
+    "searchEngine": "https://search.brave.com/search?q="
   },
   "members": {
     "simulated": true,
-    "startCount": 483,
+    "startCount": 118,
     "targetCount": 1000,
     "cycleHours": 2
   },

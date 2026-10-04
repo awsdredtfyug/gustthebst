@@ -80,6 +80,7 @@
     .game-row input { min-width: 0; }
     .save-bar { position: sticky; bottom: 0; display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 12px 0; border-top: 1px solid var(--line); background: rgba(8, 11, 16, 0.96); }
     .save-bar .message { flex: 1; margin: 0; }
+    .save-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
     @media (max-width: 680px) {
       .app-shell { padding: 16px; }
       .metrics { grid-template-columns: 1fr; }
@@ -139,7 +140,7 @@
           <div class="metric"><span class="metric-label">Cycle target</span><strong class="metric-value" id="overview-target">1,000</strong></div>
           <div class="metric"><span class="metric-label">Game links</span><strong class="metric-value" id="overview-games">0</strong></div>
         </div>
-        <div class="notice">The online member number is simulated, not live visitor analytics. Game links appear as shortcuts on the new-tab page.</div>
+        <div class="notice">The member display is simulated, not live visitor analytics. Games appear as new-tab shortcuts. Download a JSON backup to edit settings offline, then import it and save to apply changes.</div>
       </section>
 
       <section class="panel hidden" data-panel="settings">
@@ -182,7 +183,12 @@
 
       <footer class="save-bar">
         <p class="message" id="save-message" role="status"></p>
-        <button class="button-primary" id="save-button" type="submit">Save changes</button>
+        <div class="save-actions">
+          <button class="button-secondary" id="export-config" type="button">Download settings</button>
+          <button class="button-secondary" id="import-config" type="button">Import settings</button>
+          <input class="hidden" id="config-file" type="file" accept="application/json,.json">
+          <button class="button-primary" id="save-button" type="submit">Save changes</button>
+        </div>
       </footer>
     </form>
   </div>
@@ -280,6 +286,28 @@
       updateOverview();
     }
 
+    function readFormConfig() {
+      return {
+        settings: {
+          siteName: document.getElementById("site-name").value.trim(),
+          defaultWisp: document.getElementById("default-wisp").value.trim(),
+          wispAutoswitch: document.getElementById("wisp-autoswitch").checked,
+          searchEngine: document.getElementById("search-engine").value,
+        },
+        members: {
+          simulated: true,
+          startCount: Number(document.getElementById("member-start").value),
+          targetCount: Number(document.getElementById("member-target").value),
+          cycleHours: Number(document.getElementById("member-cycle").value),
+        },
+        games: [...document.querySelectorAll(".game-row")].map((row) => ({
+          id: row.dataset.id,
+          name: row.querySelector('[aria-label="Game name"]').value.trim(),
+          url: row.querySelector('[aria-label="Game URL"]').value.trim(),
+        })),
+      };
+    }
+
     async function enterAdmin() {
       const value = await api("/api/admin/config");
       populateForm(value);
@@ -323,32 +351,46 @@
       updateOverview();
     });
 
+    document.getElementById("export-config").addEventListener("click", () => {
+      const blob = new Blob([`${JSON.stringify(readFormConfig(), null, 2)}\n`], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "gust-settings.json";
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    });
+
+    document.getElementById("import-config").addEventListener("click", () => {
+      document.getElementById("config-file").click();
+    });
+
+    document.getElementById("config-file").addEventListener("change", async (event) => {
+      const file = event.target.files[0];
+      if (!file) return;
+      try {
+        const imported = JSON.parse(await file.text());
+        if (!imported.settings || !imported.members || !Array.isArray(imported.games)) {
+          throw new Error("This file is not a Gust settings backup.");
+        }
+        populateForm(imported);
+        saveMessage.textContent = "Settings imported. Save changes to apply them.";
+        saveMessage.className = "message";
+      } catch (error) {
+        saveMessage.textContent = error.message || "Could not read settings file.";
+        saveMessage.className = "message error";
+      } finally {
+        event.target.value = "";
+      }
+    });
+
     document.getElementById("config-form").addEventListener("submit", async (event) => {
       event.preventDefault();
       const button = document.getElementById("save-button");
       button.disabled = true;
       saveMessage.textContent = "Saving…";
       saveMessage.className = "message";
-      const games = [...document.querySelectorAll(".game-row")].map((row) => ({
-        id: row.dataset.id,
-        name: row.querySelector('[aria-label="Game name"]').value.trim(),
-        url: row.querySelector('[aria-label="Game URL"]').value.trim(),
-      }));
-      const nextConfig = {
-        settings: {
-          siteName: document.getElementById("site-name").value.trim(),
-          defaultWisp: document.getElementById("default-wisp").value.trim(),
-          wispAutoswitch: document.getElementById("wisp-autoswitch").checked,
-          searchEngine: document.getElementById("search-engine").value,
-        },
-        members: {
-          simulated: true,
-          startCount: Number(document.getElementById("member-start").value),
-          targetCount: Number(document.getElementById("member-target").value),
-          cycleHours: Number(document.getElementById("member-cycle").value),
-        },
-        games,
-      };
+      const nextConfig = readFormConfig();
       try {
         config = await api("/api/admin/config", { method: "PUT", body: JSON.stringify(nextConfig) });
         populateForm(config);

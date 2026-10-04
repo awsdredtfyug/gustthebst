@@ -2,6 +2,7 @@ const http = require("node:http");
 const fs = require("node:fs");
 const path = require("node:path");
 const crypto = require("node:crypto");
+const zlib = require("node:zlib");
 
 const root = __dirname;
 const port = Number(process.env.PORT || 8080);
@@ -301,9 +302,28 @@ const server = http.createServer(async (request, response) => {
             return;
         }
 
-        response.setHeader("Content-Type", contentTypes[path.extname(filePath)] || "application/octet-stream");
+        const contentType = contentTypes[path.extname(filePath)] || "application/octet-stream";
+        response.setHeader("Content-Type", contentType);
+        response.setHeader("Cache-Control", pathname.startsWith("/vendor/") ? "public, max-age=604800" : "no-cache");
         if (request.method === "HEAD") {
             response.writeHead(200).end();
+            return;
+        }
+
+        const acceptEncoding = request.headers["accept-encoding"] || "";
+        const isCompressible = /^(text\/|application\/(?:javascript|json|wasm)|image\/svg\+xml)/i.test(contentType);
+        if (stats.size >= 1024 && isCompressible && /\bbr\b/.test(acceptEncoding)) {
+            response.setHeader("Vary", "Accept-Encoding");
+            response.setHeader("Content-Encoding", "br");
+            fs.createReadStream(filePath)
+                .pipe(zlib.createBrotliCompress({ params: { [zlib.constants.BROTLI_PARAM_QUALITY]: 4 } }))
+                .pipe(response);
+            return;
+        }
+        if (stats.size >= 1024 && isCompressible && /\bgzip\b/.test(acceptEncoding)) {
+            response.setHeader("Vary", "Accept-Encoding");
+            response.setHeader("Content-Encoding", "gzip");
+            fs.createReadStream(filePath).pipe(zlib.createGzip({ level: 6 })).pipe(response);
             return;
         }
         fs.createReadStream(filePath).pipe(response);
