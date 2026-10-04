@@ -42,13 +42,27 @@ self.basePath = basePath;
 
 self.$scramjet = {
     files: {
-        wasm: "https://cdn.jsdelivr.net/gh/Destroyed12121/Staticsj@main/JS/scramjet.wasm.wasm",
-        sync: "https://cdn.jsdelivr.net/gh/Destroyed12121/Staticsj@main/JS/scramjet.sync.js",
+        wasm: "https://fastly.jsdelivr.net/gh/Destroyed12121/Staticsj@main/JS/scramjet.wasm.wasm",
+        sync: "https://fastly.jsdelivr.net/gh/Destroyed12121/Staticsj@main/JS/scramjet.sync.js",
     }
 };
 
-importScripts("https://cdn.jsdelivr.net/gh/Destroyed12121/Staticsj@main/JS/scramjet.all.js");
-importScripts("https://cdn.jsdelivr.net/npm/@mercuryworkshop/bare-mux/dist/index.js");
+function importScriptWithFallback(primary, fallback) {
+    try {
+        importScripts(primary);
+    } catch {
+        importScripts(fallback);
+    }
+}
+
+importScriptWithFallback(
+    "https://cdn.jsdelivr.net/gh/Destroyed12121/Staticsj@main/JS/scramjet.all.js",
+    "https://fastly.jsdelivr.net/gh/Destroyed12121/Staticsj@main/JS/scramjet.all.js"
+);
+importScriptWithFallback(
+    "https://cdn.jsdelivr.net/npm/@mercuryworkshop/bare-mux/dist/index.js",
+    "https://fastly.jsdelivr.net/npm/@mercuryworkshop/bare-mux/dist/index.js"
+);
 
 const { ScramjetServiceWorker } = $scramjetLoadWorker();
 const scramjet = new ScramjetServiceWorker({

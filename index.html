@@ -5,10 +5,51 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gust</title>
 
-    <script src="https://cdn.jsdelivr.net/gh/Destroyed12121/Staticsj@main/JS/scramjet.all.js" defer></script>
-    <script type="module">
-        import * as BareMux from "https://cdn.jsdelivr.net/npm/@mercuryworkshop/bare-mux/dist/index.mjs";
-        window.BareMux = BareMux;
+    <script>
+      window.scramjetReady = new Promise((resolve, reject) => {
+        const sources = [
+          "https://cdn.jsdelivr.net/gh/Destroyed12121/Staticsj@main/JS/scramjet.all.js",
+          "https://fastly.jsdelivr.net/gh/Destroyed12121/Staticsj@main/JS/scramjet.all.js"
+        ];
+        let sourceIndex = 0;
+        const loadNext = () => {
+          if (sourceIndex >= sources.length) {
+            reject(new Error("Unable to load Scramjet from available CDNs."));
+            return;
+          }
+          const script = document.createElement("script");
+          script.src = sources[sourceIndex++];
+          script.onload = () => {
+            if (typeof window.$scramjetLoadController === "function") resolve();
+            else {
+              script.remove();
+              loadNext();
+            }
+          };
+          script.onerror = () => {
+            script.remove();
+            loadNext();
+          };
+          document.head.appendChild(script);
+        };
+        loadNext();
+      }).catch(error => {
+        window.scramjetLoadError = error;
+      });
+
+      window.bareMuxReady = (async () => {
+        try {
+          return await import("https://cdn.jsdelivr.net/npm/@mercuryworkshop/bare-mux/dist/index.mjs");
+        } catch {
+          return import("https://fastly.jsdelivr.net/npm/@mercuryworkshop/bare-mux/dist/index.mjs");
+        }
+      })().then(module => {
+        window.BareMux = module;
+        return module;
+      }).catch(error => {
+        window.bareMuxLoadError = error;
+        return null;
+      });
     </script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
@@ -1463,8 +1504,9 @@
         async function getSharedScramjet() {
             if (sharedScramjet) return sharedScramjet;
 
+          await window.scramjetReady;
             if (typeof $scramjetLoadController === 'undefined') {
-                throw new Error("Scramjet not loaded. The CDN script may have failed to load.");
+            throw new Error(window.scramjetLoadError?.message || "Scramjet failed to load from available CDNs.");
             }
 
             const basePath = getBasePath();
@@ -1473,9 +1515,9 @@
             sharedScramjet = new ScramjetController({
                 prefix: basePath + "scramjet/",
                 files: {
-                    wasm: "https://cdn.jsdelivr.net/gh/Destroyed12121/Staticsj@main/JS/scramjet.wasm.wasm",
-                    all: "https://cdn.jsdelivr.net/gh/Destroyed12121/Staticsj@main/JS/scramjet.all.js",
-                    sync: "https://cdn.jsdelivr.net/gh/Destroyed12121/Staticsj@main/JS/scramjet.sync.js"
+                    wasm: "https://fastly.jsdelivr.net/gh/Destroyed12121/Staticsj@main/JS/scramjet.wasm.wasm",
+                    all: "https://fastly.jsdelivr.net/gh/Destroyed12121/Staticsj@main/JS/scramjet.all.js",
+                    sync: "https://fastly.jsdelivr.net/gh/Destroyed12121/Staticsj@main/JS/scramjet.sync.js"
                 }
             });
             
@@ -1510,12 +1552,12 @@
 
             const wispUrl = localStorage.getItem("proxServer") ?? DEFAULT_WISP;
             
-            const BM = getBareMux();
-            if (!BM) throw new Error("BareMux not loaded yet. The bare-mux module import may have failed.");
+            const BM = window.bareMuxReady ? await window.bareMuxReady : getBareMux();
+            if (!BM) throw new Error(window.bareMuxLoadError?.message || "BareMux failed to load from available CDNs.");
 
             sharedConnection = new BM.BareMuxConnection(getBasePath() + "bareworker.js");
             await sharedConnection.setTransport(
-                "https://cdn.jsdelivr.net/npm/@mercuryworkshop/epoxy-transport@2.1.28/dist/index.mjs",
+                "https://fastly.jsdelivr.net/npm/@mercuryworkshop/epoxy-transport@2.1.28/dist/index.mjs",
                 [{ wisp: wispUrl }]
             );
             sharedConnectionReady = true;
