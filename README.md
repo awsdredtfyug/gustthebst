@@ -87,3 +87,13 @@ Developed by **Vortex Innovations Cyber**.
 ## ⭐ Support
 
 If you find the project useful, consider giving the repository a ⭐ on GitHub.
+
+## Admin panel
+
+Run the Node server with an admin password set in the environment, then open `/admin.html`:
+
+```sh
+GUST_ADMIN_PASSWORD='choose-a-long-unique-password' node server.js
+```
+
+Admin settings and game shortcuts are stored in `site-config.json`. The member display is simulated and is not live visitor analytics. The admin API requires the Node server; a static GitHub Pages deployment alone cannot save changes.

@@ -1581,6 +1581,12 @@
           DEFAULT_WISP = window.GUST_PUBLIC_CONFIG.settings?.defaultWisp || DEFAULT_WISP;
           if (window.GUST_PUBLIC_CONFIG.settings?.siteName) document.title = window.GUST_PUBLIC_CONFIG.settings.siteName;
           sendPublicConfigToNtTabs();
+          navigator.serviceWorker?.controller?.postMessage({
+            type: 'config',
+            wispurl: localStorage.getItem('proxServer') || DEFAULT_WISP,
+            servers: getAllWispServers(),
+            autoswitch: getWispAutoswitch()
+          });
           return window.GUST_PUBLIC_CONFIG;
         }
 
