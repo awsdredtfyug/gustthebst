@@ -17,6 +17,7 @@
 * 🚀 **Ping Optimization** — Lower-ping servers can provide faster browsing.
 * 💻 **Browser-Based** — No traditional installation is required.
 * 📱 **Responsive Design** — Designed to work across different screen sizes.
+* and it is a file download
 
 ---
 
