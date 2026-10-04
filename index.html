@@ -278,33 +278,66 @@
           box-shadow: 0 0 10px var(--accent-glow);
         }
         .download-site-bottom-btn {
-          position: absolute;
-          right: 16px;
-          bottom: 16px;
-          z-index: 10001;
+          position: static;
+          z-index: auto;
           margin: 0;
-          background: var(--bg);
+          background: transparent;
         }
         .download-site-bottom-left-btn {
+          left: auto;
           right: auto;
-          left: 16px;
         }
         .online-count-badge {
-          position: absolute;
-          right: 16px;
-          bottom: 58px;
-          z-index: 10001;
           display: flex;
           align-items: center;
           gap: 7px;
-          padding: 7px 10px;
-          background: rgba(0, 0, 0, 0.9);
-          border: 1px solid var(--border);
-          border-radius: 6px;
+          padding: 0;
           color: var(--text-dim);
           font: 0.68rem var(--font);
           white-space: nowrap;
           pointer-events: none;
+        }
+        .browser-status-bar {
+          min-height: 40px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 10px;
+          padding: 4px 10px;
+          border-top: 1px solid var(--border);
+          background: var(--bg);
+          flex-shrink: 0;
+        }
+        .browser-status-left, .browser-status-actions {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          min-width: 0;
+        }
+        .browser-status-ping {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          color: var(--text-dim);
+          font: 0.68rem var(--font);
+          white-space: nowrap;
+        }
+        .browser-status-dot {
+          width: 7px;
+          height: 7px;
+          border-radius: 50%;
+          background: var(--text-dim);
+          flex: 0 0 7px;
+        }
+        .browser-status-dot.online { background: #52d69a; box-shadow: 0 0 7px rgba(82, 214, 154, 0.6); }
+        .browser-status-dot.offline { background: #ff5555; }
+        .browser-status-name {
+          max-width: 140px;
+          overflow: hidden;
+          color: var(--text-dim);
+          font: 0.66rem var(--font);
+          text-overflow: ellipsis;
+          white-space: nowrap;
         }
         .online-count-dot {
           width: 7px;
@@ -444,6 +477,17 @@
           filter: blur(12px);
           transition: filter 0.4s ease;
         }
+        .wisp-option.fastest-wisp {
+          border-color: rgba(82, 214, 154, 0.55);
+        }
+        .fastest-wisp-label {
+          display: none;
+          color: #52d69a;
+          font-size: 0.62rem;
+          text-transform: uppercase;
+          white-space: nowrap;
+        }
+        .wisp-option.fastest-wisp .fastest-wisp-label { display: inline; }
 
         /* ── MESSAGE / LOADING OVERLAY ── */
         .message-container {
@@ -682,6 +726,12 @@
         .status-indicator.status-error {
           background: #ff4444;
           box-shadow: 0 0 5px rgba(255,68,68,0.5);
+        }
+        @media (max-width: 520px) {
+          .browser-status-bar { padding-inline: 6px; gap: 5px; }
+          .browser-status-left, .browser-status-actions { gap: 6px; }
+          .browser-status-name, .online-count-label { display: none; }
+          .download-site-btn { width: 26px; height: 26px; }
         }
         .custom-input-group {
           display: flex;
@@ -1677,24 +1727,32 @@
             if (sharedConnectionReady) return sharedConnection;
           if (sharedConnectionPromise) return sharedConnectionPromise;
 
-          sharedConnectionPromise = (async () => {
-            const wispUrl = localStorage.getItem("proxServer") ?? DEFAULT_WISP;
-            const BM = window.bareMuxReady ? await window.bareMuxReady : getBareMux();
-            if (!BM) throw new Error(window.bareMuxLoadError?.message || "BareMux failed to load from local assets or available CDNs.");
+          let timeoutId;
+          const setup = (async () => {
+              const wispUrl = localStorage.getItem("proxServer") ?? DEFAULT_WISP;
+              const BM = window.bareMuxReady ? await window.bareMuxReady : getBareMux();
+              if (!BM) throw new Error(window.bareMuxLoadError?.message || "BareMux failed to load from local assets or available CDNs.");
 
-            const connection = new BM.BareMuxConnection(getBasePath() + "bareworker.js");
-            await connection.setTransport(
-              new URL(getBasePath() + "vendor/epoxy-transport.mjs", location.origin).href,
-              [{ wisp: wispUrl }]
-            );
-            sharedConnection = connection;
-            sharedConnectionReady = true;
-            return connection;
+              const connection = new BM.BareMuxConnection(getBasePath() + "bareworker.js");
+              await connection.setTransport(
+                  new URL(getBasePath() + "vendor/epoxy-transport.mjs", location.origin).href,
+                  [{ wisp: wispUrl }]
+              );
+              sharedConnection = connection;
+              sharedConnectionReady = true;
+              return connection;
           })();
+          sharedConnectionPromise = Promise.race([
+              setup,
+              new Promise((_, reject) => {
+                  timeoutId = setTimeout(() => reject(new Error("Proxy setup timed out after 20 seconds. Check your connection and selected Wisp server, then retry.")), 20000);
+              })
+          ]);
 
           try {
             return await sharedConnectionPromise;
           } finally {
+            clearTimeout(timeoutId);
             sharedConnectionPromise = null;
           }
         }
@@ -1822,15 +1880,24 @@
                             <div class="message-content">
                                 <h1>Connection Error</h1>
                                 <p id="error-message">An error occurred.</p>
+                            <button id="retry-proxy-btn" type="button" style="padding:10px 18px;background:var(--accent);color:#000;border:0;border-radius:6px;cursor:pointer;font-family:var(--font);font-weight:bold">Retry</button>
                             </div>
                         </div>
                     </div>
-                      <button id="download-site-bottom-btn" class="download-site-btn download-site-bottom-btn" type="button" title="Download Gust HTML" aria-label="Download Gust HTML"><i class="fa-solid fa-download" aria-hidden="true"></i></button>
-                    <button id="download-netlify-bottom-btn" class="download-site-btn download-site-bottom-btn download-site-bottom-left-btn" type="button" title="Download linked website HTML" aria-label="Download linked website HTML"><i class="fa-solid fa-file-arrow-down" aria-hidden="true"></i></button>
-                    <div class="online-count-badge" title="Simulated member count, not live analytics">
-                      <span class="online-count-dot" aria-hidden="true"></span>
-                      <span class="online-count-number" id="simulated-online-count">483</span>
-                      <span>members online · simulated</span>
+                    <div class="browser-status-bar" aria-label="Connection status and actions">
+                      <div class="browser-status-left">
+                        <span class="browser-status-ping"><span class="browser-status-dot" id="active-wisp-dot"></span><span id="active-wisp-ping">Ping: checking</span></span>
+                        <span class="browser-status-name" id="active-wisp-name"></span>
+                        <div class="online-count-badge" title="Simulated member count, not live analytics">
+                          <span class="online-count-dot" aria-hidden="true"></span>
+                          <span class="online-count-number" id="simulated-online-count">483</span>
+                          <span class="online-count-label">members · simulated</span>
+                        </div>
+                      </div>
+                      <div class="browser-status-actions">
+                        <button id="download-netlify-bottom-btn" class="download-site-btn" type="button" title="Download linked website HTML" aria-label="Download linked website HTML"><i class="fa-solid fa-file-arrow-down" aria-hidden="true"></i></button>
+                        <button id="download-site-bottom-btn" class="download-site-btn" type="button" title="Download Gust HTML" aria-label="Download Gust HTML"><i class="fa-solid fa-download" aria-hidden="true"></i></button>
+                      </div>
                     </div>
                 </div>`;
 
@@ -1903,6 +1970,10 @@
                     tab.loading = false;
                     showIframeLoading(false);
                 }
+            };
+            document.getElementById('retry-proxy-btn').onclick = () => {
+              document.getElementById('error').style.display = 'none';
+              handleSubmit(window.lastProxyUrl || '');
             };
 
             elements.addrBar.onkeyup = (e) => e.key === 'Enter' && handleSubmit();
@@ -1988,11 +2059,19 @@
                     if (tab.loading) {
                         tab.loading = false;
                         clearTimeout(tab.skipTimeout);
-                        if (tab.id === activeTabId) showIframeLoading(false);
+                    if (tab.id === activeTabId) {
+                      showIframeLoading(false);
+                      const errorBox = document.getElementById("error");
+                      const errorMessage = document.getElementById("error-message");
+                      if (errorBox && errorMessage) {
+                        errorMessage.textContent = "This page did not respond within 15 seconds. Check your Wisp server or retry.";
+                        errorBox.style.display = "flex";
+                      }
+                    }
                         updateTabsUI();
                         updateLoadingBar(tab, 100);
                     }
-                }, 2000);
+                }, 15000);
             });
 
             frame.frame.addEventListener('load', () => {
@@ -2002,6 +2081,7 @@
 
                 if (tab.id === activeTabId) {
                     showIframeLoading(false);
+                  document.getElementById("error").style.display = "none";
                 }
 
                 try {
@@ -2197,6 +2277,8 @@
             }
             
             tab.loading = true;
+            window.lastProxyUrl = input;
+            document.getElementById("error").style.display = "none";
             showIframeLoading(true, input);
             updateLoadingBar(tab, 10);
             try {
@@ -2204,8 +2286,14 @@
               tab.frame.go(input);
             } catch (error) {
               tab.loading = false;
-              showIframeLoading(false);
+              if (tab.id === activeTabId) showIframeLoading(false);
               updateLoadingBar(tab, 100);
+              const errorBox = document.getElementById("error");
+              const errorMessage = document.getElementById("error-message");
+              if (tab.id === activeTabId && errorBox && errorMessage) {
+                errorMessage.textContent = error.message || "Could not initialize the proxy transport.";
+                errorBox.style.display = "flex";
+              }
               proxyNotify("error", "Proxy startup failed", error.message || "Could not initialize the proxy transport.");
             }
         }
@@ -2230,12 +2318,15 @@
             renderServerList();
         }
 
+        let wispStatusRenderToken = 0;
         function renderServerList() {
             const list = document.getElementById('server-list');
             list.innerHTML = '';
 
             const currentUrl = localStorage.getItem('proxServer') ?? DEFAULT_WISP;
             const allWisps = [...WISP_SERVERS, ...getStoredWisps()];
+          const statusRenderToken = ++wispStatusRenderToken;
+          const statusRows = [];
 
             allWisps.forEach((server, index) => {
                 const isActive = server.url === currentUrl;
@@ -2255,7 +2346,8 @@
                             ${isActive ? '<i class="fa-solid fa-check" style="margin-left:8px; font-size: 0.7em; color: var(--accent);"></i>' : ''}
                         </div>
                         <div class="server-status">
-                            <span class="ping-text">...</span>
+                          <span class="ping-text">Checking…</span>
+                          <span class="fastest-wisp-label">Fastest</span>
                             <div class="status-indicator"></div>
                             ${deleteBtn}
                         </div>
@@ -2265,8 +2357,19 @@
 
                 item.onclick = () => setWisp(server.url);
                 list.appendChild(item);
-                checkServerHealth(server.url, item);
+                statusRows.push({ item, check: checkServerHealth(server.url, item) });
             });
+
+              Promise.all(statusRows.map(row => row.check)).then(results => {
+                if (statusRenderToken !== wispStatusRenderToken) return;
+                const fastestIndices = new Set(results
+                  .map((result, index) => ({ result, index }))
+                  .filter(entry => entry.result.success)
+                  .sort((a, b) => a.result.latency - b.result.latency)
+                  .slice(0, 2)
+                  .map(entry => entry.index));
+                statusRows.forEach((row, index) => row.item.classList.toggle('fastest-wisp', fastestIndices.has(index)));
+              });
 
             const isAutoswitch = getWispAutoswitch();
             const toggleContainer = document.createElement('div');
@@ -2335,44 +2438,33 @@
         async function checkServerHealth(url, element) {
             const dot = element.querySelector('.status-indicator');
             const text = element.querySelector('.ping-text');
-            const start = Date.now();
+          const result = await pingWispServer(url, 4000);
+          if (!element.isConnected) return result;
+          dot.classList.toggle('status-success', result.success);
+          dot.classList.toggle('status-error', !result.success);
+          text.textContent = result.success ? `${result.latency} ms` : 'Offline';
+          return result;
+        }
 
-            const markOffline = () => {
-                dot.classList.add('status-error');
-                text.textContent = "Offline";
-            };
+        let activeWispPingSequence = 0;
+        async function refreshActiveWispPing() {
+          const pingText = document.getElementById('active-wisp-ping');
+          const pingDot = document.getElementById('active-wisp-dot');
+          const wispName = document.getElementById('active-wisp-name');
+          if (!pingText || !pingDot || document.visibilityState === 'hidden') return;
 
-            try {
-                const controller = new AbortController();
-                const timeout = setTimeout(() => controller.abort(), 2000);
-                
-                await fetch(url.replace('wss://', 'https://').replace('/wisp/', '/health') || url, {
-                    method: 'HEAD',
-                    signal: controller.signal,
-                    mode: 'no-cors'
-                });
-                
-                clearTimeout(timeout);
-                dot.classList.add('status-success');
-                text.textContent = `${Date.now() - start}ms`;
-            } catch {
-                try {
-                    const wsTest = new WebSocket(url);
-                    wsTest.onopen = () => {
-                        dot.classList.add('status-success');
-                        text.textContent = `${Date.now() - start}ms`;
-                        wsTest.close();
-                    };
-                    wsTest.onerror = markOffline;
-                    
-                    setTimeout(() => {
-                        if (wsTest.readyState !== WebSocket.OPEN) {
-                            wsTest.close();
-                            markOffline();
-                        }
-                    }, 1000);
-                } catch { markOffline(); }
-            }
+          const url = localStorage.getItem('proxServer') || DEFAULT_WISP;
+          const server = [...WISP_SERVERS, ...getStoredWisps()].find(item => item.url === url);
+          const sequence = ++activeWispPingSequence;
+          if (wispName) wispName.textContent = server?.name || 'Wisp';
+          pingText.textContent = 'Ping: checking';
+          pingDot.classList.remove('online', 'offline');
+
+          const result = await pingWispServer(url, 4000);
+          if (sequence !== activeWispPingSequence || url !== (localStorage.getItem('proxServer') || DEFAULT_WISP)) return;
+          pingDot.classList.toggle('online', result.success);
+          pingDot.classList.toggle('offline', !result.success);
+          pingText.textContent = result.success ? `Ping: ${result.latency} ms` : 'Ping: offline';
         }
 
         function setWisp(url) {
@@ -2604,6 +2696,9 @@
                   _piMark('pi-s3', 'active');
                 await initializeBrowser();
                   _piMark('pi-s3', 'done');
+                  refreshActiveWispPing();
+                  setInterval(refreshActiveWispPing, 15000);
+                  document.addEventListener('visibilitychange', refreshActiveWispPing);
                   setInterval(() => {
                     loadPublicConfig()
                       .then(() => window.updateSimulatedMemberCounter?.())
