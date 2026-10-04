@@ -1523,10 +1523,25 @@
 
         async function downloadWebsiteHtml() {
           try {
-            const response = await fetch(window.location.href, { cache: "no-store" });
-            if (!response.ok) throw new Error(`Download failed (${response.status})`);
-
-            const html = await response.text();
+            const appUrl = new URL(window.location.href);
+            appUrl.hash = "";
+            const safeAppUrl = appUrl.href.replaceAll("&", "&amp;").replaceAll('"', "&quot;");
+            const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GhostLink</title>
+  <style>
+    html, body, iframe { width: 100%; height: 100%; margin: 0; border: 0; }
+    body { overflow: hidden; }
+    iframe { display: block; }
+  </style>
+</head>
+<body>
+  <iframe src="${safeAppUrl}" title="GhostLink"></iframe>
+</body>
+</html>`;
             const blobUrl = URL.createObjectURL(new Blob([html], { type: "text/html;charset=utf-8" }));
             const link = document.createElement("a");
             link.href = blobUrl;
@@ -1535,7 +1550,7 @@
             setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
           } catch (error) {
             console.error("Website download failed:", error);
-            proxyNotify("error", "Download failed", "Could not download the website HTML.");
+            proxyNotify("error", "Download failed", "Could not create the website launcher HTML.");
           }
         }
 
