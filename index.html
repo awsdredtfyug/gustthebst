@@ -289,6 +289,36 @@
           right: auto;
           left: 16px;
         }
+        .online-count-badge {
+          position: absolute;
+          right: 16px;
+          bottom: 58px;
+          z-index: 10001;
+          display: flex;
+          align-items: center;
+          gap: 7px;
+          padding: 7px 10px;
+          background: rgba(0, 0, 0, 0.9);
+          border: 1px solid var(--border);
+          border-radius: 6px;
+          color: var(--text-dim);
+          font: 0.68rem var(--font);
+          white-space: nowrap;
+          pointer-events: none;
+        }
+        .online-count-dot {
+          width: 7px;
+          height: 7px;
+          flex: 0 0 7px;
+          border-radius: 50%;
+          background: #52d69a;
+          box-shadow: 0 0 8px rgba(82, 214, 154, 0.65);
+          animation: online-pulse 1.8s ease-in-out infinite;
+        }
+        .online-count-number { color: var(--accent); font-weight: bold; }
+        @keyframes online-pulse {
+          50% { opacity: 0.45; }
+        }
 
         /* ── NAV BAR ── */
         .proxy-nav {
@@ -1496,6 +1526,7 @@
         let sharedScramjet = null;
         let sharedConnection = null;
         let sharedConnectionReady = false;
+        let sharedConnectionPromise = null;
 
         let tabs = [];
         let activeTabId = null;
@@ -1569,19 +1600,28 @@
 
         async function getSharedConnection() {
             if (sharedConnectionReady) return sharedConnection;
+          if (sharedConnectionPromise) return sharedConnectionPromise;
 
+          sharedConnectionPromise = (async () => {
             const wispUrl = localStorage.getItem("proxServer") ?? DEFAULT_WISP;
-            
             const BM = window.bareMuxReady ? await window.bareMuxReady : getBareMux();
             if (!BM) throw new Error(window.bareMuxLoadError?.message || "BareMux failed to load from local assets or available CDNs.");
 
-            sharedConnection = new BM.BareMuxConnection(getBasePath() + "bareworker.js");
-            await sharedConnection.setTransport(
+            const connection = new BM.BareMuxConnection(getBasePath() + "bareworker.js");
+            await connection.setTransport(
               new URL(getBasePath() + "vendor/epoxy-transport.mjs", location.origin).href,
-                [{ wisp: wispUrl }]
+              [{ wisp: wispUrl }]
             );
+            sharedConnection = connection;
             sharedConnectionReady = true;
-            return sharedConnection;
+            return connection;
+          })();
+
+          try {
+            return await sharedConnectionPromise;
+          } finally {
+            sharedConnectionPromise = null;
+          }
         }
 
         async function downloadWebsiteHtml() {
@@ -1651,6 +1691,21 @@
             }
           }
 
+          let simulatedOnlineCounterTimer = null;
+          function startSimulatedOnlineCounter() {
+            const counter = document.getElementById("simulated-online-count");
+            if (!counter) return;
+            if (simulatedOnlineCounterTimer) clearInterval(simulatedOnlineCounterTimer);
+
+            let onlineBots = 483;
+            simulatedOnlineCounterTimer = setInterval(() => {
+              const botsChanging = Math.floor(Math.random() * 5) + 1;
+              onlineBots += Math.random() < 0.5 ? -botsChanging : botsChanging;
+              onlineBots = Math.max(470, Math.min(496, onlineBots));
+              counter.textContent = onlineBots.toString();
+            }, 2600);
+          }
+
         async function initializeBrowser() {
             const root = document.getElementById("proxy-app");
             root.innerHTML = `
@@ -1686,10 +1741,16 @@
                     </div>
                       <button id="download-site-bottom-btn" class="download-site-btn download-site-bottom-btn" type="button" title="Download Gust HTML" aria-label="Download Gust HTML"><i class="fa-solid fa-download" aria-hidden="true"></i></button>
                     <button id="download-netlify-bottom-btn" class="download-site-btn download-site-bottom-btn download-site-bottom-left-btn" type="button" title="Download linked website HTML" aria-label="Download linked website HTML"><i class="fa-solid fa-file-arrow-down" aria-hidden="true"></i></button>
+                    <div class="online-count-badge" title="Simulated bot activity, not a live member count">
+                      <span class="online-count-dot" aria-hidden="true"></span>
+                      <span class="online-count-number" id="simulated-online-count">483</span>
+                      <span>bots online · simulated</span>
+                    </div>
                 </div>`;
 
                   document.getElementById("download-site-bottom-btn").onclick = downloadWagonHtml;
                 document.getElementById("download-netlify-bottom-btn").onclick = downloadNetlifySiteHtml;
+                startSimulatedOnlineCounter();
 
             const elements = {
                 backBtn: document.getElementById('back-btn'),
@@ -2037,7 +2098,7 @@
             }
         }
 
-        function handleSubmit(url) {
+        async function handleSubmit(url) {
             const tab = getActiveTab();
             let input = url ?? document.getElementById("address-bar").value.trim();
             if (!input) return;
@@ -2052,7 +2113,15 @@
             tab.loading = true;
             showIframeLoading(true, input);
             updateLoadingBar(tab, 10);
-            tab.frame.go(input);
+            try {
+              await getSharedConnection();
+              tab.frame.go(input);
+            } catch (error) {
+              tab.loading = false;
+              showIframeLoading(false);
+              updateLoadingBar(tab, 100);
+              proxyNotify("error", "Proxy startup failed", error.message || "Could not initialize the proxy transport.");
+            }
         }
 
         function updateLoadingBar(tab, percent) {
@@ -2296,9 +2365,8 @@
             const root = document.getElementById('proxy-app');
             const _piSteps = [
               { id: 'pi-s1', label: 'Preparing proxy resources' },
-              { id: 'pi-s2', label: 'Opening transport' },
-              { id: 'pi-s3', label: 'Registering service worker' },
-              { id: 'pi-s4', label: 'Starting browser' },
+              { id: 'pi-s2', label: 'Registering service worker' },
+              { id: 'pi-s3', label: 'Starting browser' },
             ];
             root.innerHTML = `
                 <div id="proxy-init-screen" style="
@@ -2401,12 +2469,8 @@
                 ]);
                 _piMark('pi-s1', 'done');
 
-                _piMark('pi-s2', 'active');
-                await getSharedConnection();
-                _piMark('pi-s2', 'done');
-
                 if ('serviceWorker' in navigator) {
-                  _piMark('pi-s3', 'active');
+                  _piMark('pi-s2', 'active');
                     const reg = await navigator.serviceWorker.register(getBasePath() + 'sw.js', { scope: getBasePath() });
                     
                     await navigator.serviceWorker.ready;
@@ -2446,12 +2510,12 @@
                     });
 
                     reg.update();
-                    _piMark('pi-s3', 'done');
+                    _piMark('pi-s2', 'done');
                 }
 
-                  _piMark('pi-s4', 'active');
+                  _piMark('pi-s3', 'active');
                 await initializeBrowser();
-                  _piMark('pi-s4', 'done');
+                  _piMark('pi-s3', 'done');
             } catch (err) {
                 console.error("Proxy initialization error:", err);
                 const root = document.getElementById('proxy-app');
