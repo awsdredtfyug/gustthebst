@@ -110,6 +110,7 @@
           height: 100%;
           display: flex;
           flex-direction: column;
+          position: relative;
           background: var(--bg);
           overflow: hidden;
           min-width: 0;
@@ -268,6 +269,14 @@
           border-color: var(--accent);
           color: var(--accent);
           box-shadow: 0 0 10px var(--accent-glow);
+        }
+        .download-site-bottom-btn {
+          position: absolute;
+          right: 16px;
+          bottom: 16px;
+          z-index: 10001;
+          margin: 0;
+          background: var(--bg);
         }
 
         /* ── NAV BAR ── */
@@ -1597,6 +1606,23 @@
           }
         }
 
+          async function downloadWagonHtml() {
+            try {
+              const response = await fetch(getBasePath() + "wagon.html", { cache: "no-store" });
+              if (!response.ok) throw new Error(`Download failed (${response.status})`);
+
+              const blobUrl = URL.createObjectURL(await response.blob());
+              const link = document.createElement("a");
+              link.href = blobUrl;
+              link.download = "wagon.html";
+              link.click();
+              setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+            } catch (error) {
+              console.error("Wagon HTML download failed:", error);
+              proxyNotify("error", "Download failed", "Could not download wagon.html.");
+            }
+          }
+
         async function initializeBrowser() {
             const root = document.getElementById("proxy-app");
             root.innerHTML = `
@@ -1630,7 +1656,10 @@
                             </div>
                         </div>
                     </div>
+                      <button id="download-site-bottom-btn" class="download-site-btn download-site-bottom-btn" type="button" title="Download Gust HTML" aria-label="Download Gust HTML"><i class="fa-solid fa-download" aria-hidden="true"></i></button>
                 </div>`;
+
+                  document.getElementById("download-site-bottom-btn").onclick = downloadWagonHtml;
 
             const elements = {
                 backBtn: document.getElementById('back-btn'),
