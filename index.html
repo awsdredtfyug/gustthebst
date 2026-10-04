@@ -1697,13 +1697,22 @@
             if (!counter) return;
             if (simulatedOnlineCounterTimer) clearInterval(simulatedOnlineCounterTimer);
 
-            let onlineBots = 483;
-            simulatedOnlineCounterTimer = setInterval(() => {
-              const botsChanging = Math.floor(Math.random() * 5) + 1;
-              onlineBots += Math.random() < 0.5 ? -botsChanging : botsChanging;
-              onlineBots = Math.max(470, Math.min(496, onlineBots));
-              counter.textContent = onlineBots.toString();
-            }, 2600);
+            const startCount = 483;
+            const endCount = 1000;
+            const cycleDuration = 2 * 60 * 60 * 1000;
+            const peakDuration = 30 * 1000;
+            const riseDuration = cycleDuration - peakDuration;
+            const startedAt = Date.now();
+
+            const updateCount = () => {
+              const cycleTime = (Date.now() - startedAt) % cycleDuration;
+              const progress = Math.min(cycleTime / riseDuration, 1);
+              const memberCount = Math.floor(startCount + (endCount - startCount) * progress);
+              counter.textContent = memberCount.toLocaleString();
+            };
+
+            updateCount();
+            simulatedOnlineCounterTimer = setInterval(updateCount, 10_000);
           }
 
         async function initializeBrowser() {
@@ -1744,7 +1753,7 @@
                     <div class="online-count-badge" title="Simulated bot activity, not a live member count">
                       <span class="online-count-dot" aria-hidden="true"></span>
                       <span class="online-count-number" id="simulated-online-count">483</span>
-                      <span>bots online · simulated</span>
+                      <span>members online · simulated</span>
                     </div>
                 </div>`;
 
