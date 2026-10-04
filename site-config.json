@@ -11,5 +11,21 @@
     "targetCount": 1000,
     "cycleHours": 2
   },
-  "games": []
+  "games": [
+    {
+      "id": "92c266bf-fcb1-44d5-858c-9b675d351f90",
+      "name": "games",
+      "url": "https://extrememath.app/"
+    },
+    {
+      "id": "7affb67e-e4fd-4198-aefa-fc9877baf428",
+      "name": "movies",
+      "url": "https://aether.ist/"
+    },
+    {
+      "id": "19a7d1b1-572e-4c45-a350-d2408f5ddaea",
+      "name": "idk if its blocked",
+      "url": "https://ixl.pages.dev/"
+    }
+  ]
 }

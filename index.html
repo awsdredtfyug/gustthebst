@@ -2552,8 +2552,7 @@
                 await Promise.all([
                   loadPublicConfig()
                     .catch(error => console.warn('Using local defaults; public config unavailable:', error))
-                    .then(() => fetchWispServers())
-                    .then(initializeWithBestServer),
+                    .then(() => fetchWispServers()),
                   getSharedScramjet()
                 ]);
                 _piMark('pi-s1', 'done');
@@ -2610,6 +2609,16 @@
                       .then(() => window.updateSimulatedMemberCounter?.())
                       .catch(error => console.warn('Public config refresh failed:', error));
                   }, 60000);
+                  setTimeout(() => {
+                    initializeWithBestServer()
+                      .then(() => navigator.serviceWorker.controller?.postMessage({
+                        type: 'config',
+                        wispurl: localStorage.getItem('proxServer') || DEFAULT_WISP,
+                        servers: getAllWispServers(),
+                        autoswitch: getWispAutoswitch()
+                      }))
+                      .catch(error => console.warn('Background Wisp optimization failed:', error));
+                  }, 250);
             } catch (err) {
                 console.error("Proxy initialization error:", err);
                 const root = document.getElementById('proxy-app');
