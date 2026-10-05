@@ -1,0 +1,11 @@
+{
+  "name": "gust",
+  "forwardPorts": [8080],
+  "portsAttributes": {
+    "8080": {
+      "label": "Gust web app",
+      "onAutoForward": "openBrowser"
+    }
+  },
+  "postStartCommand": "node server.js"
+}
