@@ -1047,6 +1047,35 @@
       color-scheme: dark;
     }
     .search-box input::placeholder { color: var(--text-dim); opacity: 0.5; }
+    .search-submit {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex: 0 0 34px;
+      width: 34px;
+      height: 34px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: transparent;
+      color: var(--accent);
+      cursor: pointer;
+      transition: 0.2s;
+    }
+    .search-submit:hover, .search-submit:focus-visible {
+      border-color: var(--accent);
+      background: rgba(255, 255, 255, 0.06);
+      box-shadow: 0 0 10px var(--accent-glow);
+      outline: none;
+    }
+    .search-submit svg {
+      width: 16px;
+      height: 16px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
     .search-box select {
       background: transparent;
       color: var(--text-dim);
@@ -1081,6 +1110,10 @@
       cursor: pointer;
       text-decoration: none;
       animation: fadeIn 0.4s ease both;
+      border: 0;
+      padding: 0;
+      background: transparent;
+      font: inherit;
     }
     .shortcut-icon {
       width: 56px;
@@ -1301,6 +1334,9 @@
           <option value="https://www.bing.com/search?q=">Bing</option>
           <option value="https://search.yahoo.com/search?p=">Yahoo</option>
         </select>
+        <button class="search-submit" type="submit" aria-label="Search" title="Search">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><line x1="16.5" y1="16.5" x2="22" y2="22"></line></svg>
+        </button>
       </div>
     </form>
     <div class="shortcuts" id="shortcuts"></div>
@@ -1390,8 +1426,11 @@
       const q = document.getElementById('searchInput').value.trim();
       if (!q) return;
       const engine = document.getElementById('engine').value;
-      const isUrl = /^https?:\/\//.test(q) || (/\./.test(q) && !/ /.test(q));
-      navigate(isUrl ? (/^https?:\/\//.test(q) ? q : 'https://' + q) : engine + encodeURIComponent(q));
+      const isUrl = /^https?:\/\//i.test(q) || (/\./.test(q) && !/ /.test(q));
+      const destination = isUrl
+        ? (/^https?:\/\//i.test(q) ? q : 'https://' + q)
+        : engine + encodeURIComponent(q);
+      navigate(destination);
     };
     const DEFAULT_SHORTCUTS = [
       { label: 'YouTube',   url: 'https://youtube.com',   viewBox: '0 0 16 16', svg: '<path d="M8.051 1.999h.089c.822.003 4.987.033 6.11.335a2.01 2.01 0 0 1 1.415 1.42c.101.38.172.883.22 1.402l.01.104.022.26.008.104c.065.914.073 1.77.074 1.957v.075c-.001.194-.01 1.108-.082 2.06l-.008.105-.009.104c-.05.572-.124 1.14-.235 1.558a2.01 2.01 0 0 1-1.415 1.42c-1.16.312-5.569.334-6.18.335h-.142c-.309 0-1.587-.006-2.927-.052l-.17-.006-.087-.004-.171-.007-.171-.007c-1.11-.049-2.167-.128-2.654-.26a2.01 2.01 0 0 1-1.415-1.419c-.111-.417-.185-.986-.235-1.558L.09 9.82l-.008-.104A31 31 0 0 1 0 7.68v-.123c.002-.215.01-.958.064-1.778l.007-.103.003-.052.008-.104.022-.26.01-.104c.048-.519.119-1.023.22-1.402a2.01 2.01 0 0 1 1.415-1.42c.487-.13 1.544-.21 2.654-.26l.17-.007.172-.006.086-.003.171-.007A100 100 0 0 1 7.858 2zM6.4 5.209v4.818l4.157-2.408z"/>' },
@@ -1420,7 +1459,8 @@
         adminGame: true
       }));
       [...getShortcuts(), ...adminGames].forEach((s, i) => {
-        const el = document.createElement('div');
+        const el = document.createElement('button');
+        el.type = 'button';
         el.className = 'shortcut';
         el.style.animationDelay = (i * 0.04 + 0.04) + 's';
         const safeLabel = escapeHtml(s.label);
@@ -1432,7 +1472,7 @@
         el.innerHTML = `
           <div class="shortcut-icon">${iconHtml}</div>
           <span class="shortcut-label">${safeLabel}</span>`;
-        el.onclick = () => navigate(s.url);
+        el.addEventListener('click', () => navigate(s.url));
         container.appendChild(el);
       });
     }
@@ -1989,8 +2029,11 @@
             elements.addrBar.onfocus = () => elements.addrBar.select();
 
             window.addEventListener('message', (e) => {
-                if (e.data?.type === 'navigate') handleSubmit(e.data.url);
-                if (e.data?.type === 'gl_open_tab' && e.data.url) {
+                if (!e.data || typeof e.data !== 'object') return;
+                if (e.data.type === 'navigate' && typeof e.data.url === 'string') {
+                    handleSubmit(e.data.url);
+                }
+                if (e.data.type === 'gl_open_tab' && typeof e.data.url === 'string') {
                     createTab(true);
                     handleSubmit(e.data.url);
                 }
