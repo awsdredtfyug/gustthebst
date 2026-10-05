@@ -116,8 +116,13 @@ self.addEventListener("message", ({ data }) => {
 // THE CORRECT PATTERN: scramjet.fetch(event) handles everything internally.
 // BareMux transport is set on the client side — the SW does not manage connections.
 self.addEventListener("fetch", event => {
-    if (isAdBlocked(event.request.url)) {
+    const requestUrl = new URL(event.request.url);
+    if (isAdBlocked(requestUrl.href)) {
         event.respondWith(new Response(null, { status: 204 }));
+        return;
+    }
+    if (event.request.mode === 'navigate' && requestUrl.origin === self.location.origin) {
+        event.respondWith(fetch(event.request));
         return;
     }
     event.respondWith((async () => {

@@ -1359,6 +1359,15 @@
       window.parent.postMessage({ type: 'GHOSTLINK_NT_READY' }, '*');
     }
 
+    function shouldBypassProxy(url) {
+      try {
+        const parsedUrl = new URL(url, window.location.href);
+        return parsedUrl.protocol === 'about:' || parsedUrl.protocol === 'blob:' || parsedUrl.protocol === 'data:' || parsedUrl.origin === window.location.origin;
+      } catch {
+        return false;
+      }
+    }
+
     function navigate(url) {
       if (window.parent && window.parent !== window) {
         window.parent.postMessage({ type: 'navigate', url }, '*');
@@ -2274,6 +2283,15 @@
                 input = input.includes('.') && !input.includes(' ') 
                     ? `https://${input}`
                     : `${savedEngine}${encodeURIComponent(input)}`;
+            }
+
+            if (shouldBypassProxy(input)) {
+                if (window.parent && window.parent !== window) {
+                    window.parent.postMessage({ type: 'navigate', url: input }, '*');
+                    return;
+                }
+                window.location.assign(input);
+                return;
             }
             
             tab.loading = true;
