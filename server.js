@@ -32,7 +32,7 @@ function defaultConfig() {
     return {
         settings: {
             siteName: "Gust",
-            defaultWisp: "wss://glseries.net/wisp/",
+            defaultWisp: "wss://admin.proxy.hydrovolter.com/scramjet/wisp/",
             wispAutoswitch: true,
             searchEngine: "https://duckduckgo.com/?q=",
         },
